@@ -4,6 +4,7 @@ import re
 import csv
 import sys
 import os
+import argparse
 import pandas as pd
 from pandas import ExcelWriter
 
@@ -13,7 +14,7 @@ finalLines = []
 xfiles = []
 
 def readFile(filename):
-    if filename == '':
+    if filename == '.':
         filename == 'SelfscanEnginePlugin.log'
     print(datetime.now().strftime('%H:%M:%S') + " reading " + filename + "...")
     with open(filename,'r') as reader:
@@ -78,22 +79,77 @@ def createCSV():
         wr.writerows([x.split(',') for x in finalLines])
         print(datetime.now().strftime('%H:%M:%S') + " done creating csv file " + xfile)
 
-def processperfdata():
-    result = pd.read_csv("sample.csv", delimiter=',')
-    fresult = result.iloc[:, 0:40]    
-    writer = ExcelWriter('TestReport.xlsx')
-    fresult.to_excel(writer, 'Sheet1', encoding='utf-8', index=False)
-    fresult.to_excel(writer, 'Sheet2', encoding='utf-8', index=False)
-    fresult.to_excel(writer, 'Sheet3', encoding='utf-8', index=False)
+def dir_path(path):
+    if os.path.isdir(path) or os.path.isfile(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(f"readable_dir:{path} is not a valid path")
+
+def parse_mode(mode):
+    if mode == 'selfscan' or mode == 'pf':
+        return mode
+    else:
+        raise argparse.ArgumentTypeError(f"parse mode:{mode} is not recognized")
+        
+def parseargs():
+    parser = argparse.ArgumentParser(description='Process command line arguments.')
+    parser.add_argument('-mode', type=parse_mode)
+    parser.add_argument('-path', type=dir_path)
+
+    args = parser.parse_args()
+    if args.mode != None and args.path != None:
+        print(args.mode + ' ' + args.path)
+    
+    if args.mode == None:
+        print('Need to provide mode[-mode selfscan/pf] to process')
+        sys.exit(0)
+
+    if args.path == None:
+        print('Path is empty therefore it process file within the current directory...')
+        args.path = '.'
+    
+    if args.mode == 'selfscan':
+        readFile(args.path)
+        mergeLines()    
+        createCSV()   
+    elif args.mode == 'pf':
+        processperfdata(getfiles(args.path))
+        
+
+def getfiles(path):
+    files = []
+    for file in os.listdir(path):
+        current = os.path.join(path, file)
+        if os.path.isfile(current):
+            base = os.path.basename(current)
+            filename, ext = os.path.splitext(base)
+            if ext == '.csv':
+                files.append(current)
+    
+    return files
+
+def processperfdata(files):
+    xdate = datetime.now().strftime('%m%d%Y-%H%M%S')
+    xfile = xdate +'-TestReport.xlsx'
+    print(datetime.now().strftime('%H:%M:%S') + " creating excel file...")
+    writer = ExcelWriter(xfile)
+    for file in files:
+        base = os.path.basename(file)
+        filename, ext = os.path.splitext(base)
+        tempresult = pd.read_csv(file, delimiter=',')
+        result = tempresult.iloc[:, 0:40]
+        result.to_excel(writer, filename, encoding='utf-8', index=False)                
     writer.save()        
+    print(datetime.now().strftime('%H:%M:%S') + " done creating excel file " + xfile)
         
         
 if __name__ == "__main__":
-    xfiles = sys.argv[1:]
+    parseargs()
+    #xfiles = sys.argv[1:]
     #for filename in xfiles:        
-    readFile('')
-    mergeLines()    
-    createCSV()    
+    #readFile('')
+    #mergeLines()    
+    #createCSV()    
             
         
         
