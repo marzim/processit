@@ -7,6 +7,7 @@ import os
 import argparse
 import pandas as pd
 from pandas import ExcelWriter
+from chartline import *
 
 linesInsertDelta = []
 linesFinishInsert = []
@@ -132,24 +133,46 @@ def processperfdata(files):
     xdate = datetime.now().strftime('%m%d%Y-%H%M%S')
     xfile = xdate +'-TestReport.xlsx'
     print(datetime.now().strftime('%H:%M:%S') + " creating excel file...")
-    writer = ExcelWriter(xfile)
+    writer = ExcelWriter(xfile, engine='xlsxwriter')
     for file in files:
         base = os.path.basename(file)
         filename, ext = os.path.splitext(base)
-        tempresult = pd.read_csv(file, delimiter=',')
-        result = tempresult.iloc[:, 0:40]
+        df = pd.read_csv(file, delimiter=',')        
+        result = df.iloc[:, 0:40]
         result.to_excel(writer, filename, encoding='utf-8', index=False)                
+        create_charts(createchart_prof(filename), writer, df, filename)
     writer.save()        
     print(datetime.now().strftime('%H:%M:%S') + " done creating excel file " + xfile)
-        
+
+def create_charts(chartprofiles, writer, result, filename):        
+    workbook = writer.book        
+    worksheet = workbook.add_worksheet(filename + ' chart')
+    for cp in chartprofiles:    
+        df = result.iloc[:, cp.col_retrieve]
+
+        chart = MyChart().createchart(cp.chartname, cp.col_retrieve, workbook, filename, len(df.index)) 
+
+        # Insert the chart into the worksheet.
+        worksheet.insert_chart(cp.chart_position, chart)
+
+def createchart_prof(filename):
+    chartprofiles = []
+    chartprofiles.append(MyChart(filename + ' chart', [1], '%UsedMemory', 'B3'))
+    chartprofiles.append(MyChart(filename + ' chart', [3], 'Used Memory(G)', 'K3'))
+    chartprofiles.append(MyChart(filename + ' chart', [5], 'Network MB/Sec', 'T3'))
+    chartprofiles.append(MyChart(filename + ' chart', [6,7,8], '% Disk', 'B22'))
+    chartprofiles.append(MyChart(filename + ' chart', [9,10,11,12], '% Processor', 'K22'))    
+    chartprofiles.append(MyChart(filename + ' chart', [13,14,15], '% Business Process', 'T22'))
+    chartprofiles.append(MyChart(filename + ' chart', [16,17,18], '% DataIntegrationService Process', 'B41'))
+    chartprofiles.append(MyChart(filename + ' chart', [21], '% HostessMessageProvider Process', 'K41'))
+    chartprofiles.append(MyChart(filename + ' chart', [22,23,24], '% SelfScanTicketProcessor Process', 'T41'))
+    chartprofiles.append(MyChart(filename + ' chart', [25,26,27], '% SelfScanTicketProvider Process', 'B60'))
+    chartprofiles.append(MyChart(filename + ' chart', [28,29,30,31], 'NumberofConnections(Businessserver)', 'K60'))
+    chartprofiles.append(MyChart(filename + ' chart', [32,33], 'NumberofConnections(Businessserver)', 'T60'))
+    return chartprofiles
         
 if __name__ == "__main__":
     parseargs()
-    #xfiles = sys.argv[1:]
-    #for filename in xfiles:        
-    #readFile('')
-    #mergeLines()    
-    #createCSV()    
             
         
         
