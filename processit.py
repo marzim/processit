@@ -138,19 +138,38 @@ def processperfdata(files):
         base = os.path.basename(file)
         filename, ext = os.path.splitext(base)
         df = pd.read_csv(file, delimiter=',')        
-        result = df.iloc[:, 0:40]
+        result = df.iloc[1:, 0:40]
+        col_used_gb = convert_data(df.iloc[1:,2], "GB")
+        result.insert(loc=38, column='UsedMemory (GB)', value=col_used_gb)
+        col_adapter_mb = convert_data(df.iloc[1:,3], "MB")
+        result.insert(loc=39, column='(vmxnet3 Ethernet Adapter _2)Bytes Total MB/sec', value=col_adapter_mb)
         result.to_excel(writer, filename, encoding='utf-8', index=False)                
         create_charts(createchart_prof(filename), writer, df, filename)
     writer.save()        
     print(datetime.now().strftime('%H:%M:%S') + " done creating excel file " + xfile)
 
+def convert_data(list_data, to_size):
+    final = []
+    for i in list_data:
+        final.append(convert_bytes(float(i), to_size))
+    return final
+
+def convert_bytes(num, to_size):
+    step_unit = 1024.0 #1024 bad the size
+    if to_size == "GB":
+        return num / step_unit / step_unit / step_unit
+    elif to_size == "MB":
+        return num / step_unit / step_unit
+    else:
+        return num
+    
 def create_charts(chartprofiles, writer, result, filename):        
     workbook = writer.book        
-    worksheet = workbook.add_worksheet(filename + ' chart')
+    worksheet = workbook.add_worksheet(filename + ' chart')    
     for cp in chartprofiles:    
         df = result.iloc[:, cp.col_retrieve]
 
-        chart = MyChart().createchart(cp.chartname, cp.col_retrieve, workbook, filename, len(df.index)) 
+        chart = MyChart().createchart(cp.chartname, cp.col_retrieve, workbook, filename, df.shape[0]) 
 
         # Insert the chart into the worksheet.
         worksheet.insert_chart(cp.chart_position, chart)
@@ -158,17 +177,28 @@ def create_charts(chartprofiles, writer, result, filename):
 def createchart_prof(filename):
     chartprofiles = []
     chartprofiles.append(MyChart(filename + ' chart', [1], '%UsedMemory', 'B3'))
-    chartprofiles.append(MyChart(filename + ' chart', [3], 'Used Memory(G)', 'K3'))
-    chartprofiles.append(MyChart(filename + ' chart', [5], 'Network MB/Sec', 'T3'))
-    chartprofiles.append(MyChart(filename + ' chart', [6,7,8], '% Disk', 'B22'))
-    chartprofiles.append(MyChart(filename + ' chart', [9,10,11,12], '% Processor', 'K22'))    
-    chartprofiles.append(MyChart(filename + ' chart', [13,14,15], '% Business Process', 'T22'))
-    chartprofiles.append(MyChart(filename + ' chart', [16,17,18], '% DataIntegrationService Process', 'B41'))
-    chartprofiles.append(MyChart(filename + ' chart', [21], '% HostessMessageProvider Process', 'K41'))
-    chartprofiles.append(MyChart(filename + ' chart', [22,23,24], '% SelfScanTicketProcessor Process', 'T41'))
-    chartprofiles.append(MyChart(filename + ' chart', [25,26,27], '% SelfScanTicketProvider Process', 'B60'))
-    chartprofiles.append(MyChart(filename + ' chart', [28,29,30,31], 'NumberofConnections(Businessserver)', 'K60'))
-    chartprofiles.append(MyChart(filename + ' chart', [32,33], 'NumberofConnections(Businessserver)', 'T60'))
+    chartprofiles.append(MyChart(filename + ' chart', [38], 'Used Memory(G)', 'K3'))
+    chartprofiles.append(MyChart(filename + ' chart', [39], 'Network MB/Sec', 'T3'))
+    if filename == 'LoadGenData' or filename == 'PEConData':
+        chartprofiles.append(MyChart(filename + ' chart', [10,11,12], '% Disk', 'B22'))
+        chartprofiles.append(MyChart(filename + ' chart', [13,14,15,16], '% Processor', 'K22'))    
+    else:
+        chartprofiles.append(MyChart(filename + ' chart', [6,7,8], '% Disk', 'B22'))
+        chartprofiles.append(MyChart(filename + ' chart', [9,10,11,12], '% Processor', 'K22'))   
+         
+    if filename == 'PEConData':
+        chartprofiles.append(MyChart(filename + ' chart', [14,15,16], '% PE Connector', 'T22'))
+    elif filename == 'FLMSDBData':
+        chartprofiles.append(MyChart(filename + ' chart', [13,14,15,16], 'NumberofConnections(Businessserver)', 'T22'))
+        chartprofiles.append(MyChart(filename + ' chart', [17,18], 'NumberofConnections(Businessserver)', 'B41'))        
+    elif filename == 'CSData':
+        chartprofiles.append(MyChart(filename + ' chart', [13,14,15], '% BusinessServer Process', 'T22'))
+        chartprofiles.append(MyChart(filename + ' chart', [16,17,18], '% DataIntegrationService Process', 'B41'))
+        chartprofiles.append(MyChart(filename + ' chart', [21], '% HostessMessageProvider Process', 'K41'))
+        chartprofiles.append(MyChart(filename + ' chart', [22,23,24], '% SelfScanTicketProcessor Process', 'T41'))
+        chartprofiles.append(MyChart(filename + ' chart', [25,26,27], '% SelfScanTicketProvider Process', 'B60'))
+        chartprofiles.append(MyChart(filename + ' chart', [28,29,30,31], 'NumberofConnections(Businessserver)', 'K60'))
+        chartprofiles.append(MyChart(filename + ' chart', [32,33], 'NumberofConnections(Businessserver)', 'T60'))
     return chartprofiles
         
 if __name__ == "__main__":
